@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <title>Lista de Pedidos</title>
 </head>
@@ -11,58 +11,141 @@
         <h2 class="fw-bold mb-0">
             <i class="bi bi-bag me-2 text-primary"></i>Pedidos
         </h2>
+        <button class="btn btn-primary" sec:authorize="hasAnyRole('GERENTE', 'ATENDENTE')"
+                data-bs-toggle="collapse" data-bs-target="#novoPedido">
+            <i class="bi bi-plus-lg me-1"></i> Novo Pedido
+        </button>
     </div>
 
-    <!-- Mensagens de feedback -->
-    <div class="alert alert-success alert-dismissible fade show" th:if="${sucesso}" role="alert">
-        <i class="bi bi-check-circle-fill me-2"></i>
-        <span th:text="${sucesso}"></span>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-    <div class="alert alert-danger alert-dismissible fade show" th:if="${erro}" role="alert">
-        <i class="bi bi-exclamation-triangle-fill me-2"></i>
-        <span th:text="${erro}"></span>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    <div id="mensagemPedido" class="alert d-none" role="alert"></div>
+
+    <div class="collapse mb-4" id="novoPedido" sec:authorize="hasAnyRole('GERENTE', 'ATENDENTE')">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form id="pedidoForm">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="clienteId" class="form-label fw-medium">Cliente</label>
+                            <select id="clienteId" class="form-select" required>
+                                <option value="" disabled selected>Selecione o cliente</option>
+                                <option th:each="c : ${clientes}" th:value="${c.id}"
+                                        th:text="${c.nome} + (${c.telefone} != null ? ' — ' + ${c.telefone} : '')"></option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="observacao" class="form-label fw-medium">Observação</label>
+                            <input type="text" id="observacao" class="form-control" maxlength="300"
+                                   placeholder="Ex: sem cebola">
+                        </div>
+                    </div>
+
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th>Produto</th>
+                                <th style="width: 120px;">Quantidade</th>
+                                <th style="width: 140px;">Preço unit.</th>
+                                <th style="width: 140px;">Subtotal</th>
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="itensPedido"></tbody>
+                    </table>
+
+                    <div class="d-flex justify-content-between align-items-center">
+                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="adicionarItem()">
+                            <i class="bi bi-plus"></i> Adicionar item
+                        </button>
+                        <div>
+                            <span class="text-muted me-2">Estimativa:</span>
+                            <strong id="estimativaTotal">R$ 0,00</strong>
+                            <button type="submit" class="btn btn-success ms-3">
+                                <i class="bi bi-check-lg me-1"></i> Registrar Pedido
+                            </button>
+                        </div>
+                    </div>
+                    <small class="text-muted">O valor final é calculado pelo servidor com base nos preços cadastrados.</small>
+                </form>
+            </div>
+        </div>
     </div>
 
-    <!-- Tabela -->
     <div class="card shadow-sm">
         <div class="card-body p-0">
             <table class="table table-hover align-middle mb-0">
                 <thead class="table-dark">
                     <tr>
-                        <th class="ps-4">ID</th>
-                        <th>Cliente ID</th>
-                        <th>Tipo de Pizza</th>
-                        <th>Sabor</th>
-                        <th>Quantidade</th>
+                        <th class="ps-4">Entrada</th>
+                        <th>Cliente</th>
+                        <th>Itens</th>
+                        <th>Total</th>
                         <th>Status</th>
+                        <th>Responsável</th>
+                        <th class="text-end pe-4"></th>
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- Lista vazia -->
                     <tr th:if="${#lists.isEmpty(pedidos)}">
-                        <td colspan="6" class="text-center text-muted py-5">
+                        <td colspan="7" class="text-center text-muted py-5">
                             <i class="bi bi-inbox fs-3 d-block mb-2"></i>
                             Nenhum pedido encontrado.
                         </td>
                     </tr>
-                    <!-- Linhas -->
-                    <tr th:each="pedido : ${pedidos}">
-                        <td class="ps-4 text-muted" th:text="${pedido.id}"></td>
-                        <td th:text="${pedido.clienteId}"></td>
-                        <td th:text="${pedido.tipoPizza}"></td>
-                        <td th:text="${pedido.sabor}"></td>
-                        <td th:text="${pedido.quantidade}"></td>
-                        <td>
-                            <span class="badge"
-                                  th:classappend="${pedido.status == 'ENTREGUE'} ? 'bg-success' :
-                                                  (${pedido.status == 'CANCELADO'} ? 'bg-danger' :
-                                                  (${pedido.status == 'EM_PREPARO'} ? 'bg-warning text-dark' : 'bg-secondary'))"
-                                  th:text="${pedido.status}">
-                            </span>
-                        </td>
-                    </tr>
+                    <th:block th:each="pedido : ${pedidos}">
+                        <tr>
+                            <td class="ps-4" th:text="${pedido.dataHoraEntrada != null} ? ${#temporals.format(pedido.dataHoraEntrada, 'dd/MM/yyyy HH:mm')} : '—'"></td>
+                            <td th:text="${pedido.clienteNome}"></td>
+                            <td th:text="${pedido.quantidadeTotalItens} + ' item(ns)'"></td>
+                            <td class="fw-medium" th:text="'R$ ' + ${#numbers.formatDecimal(pedido.valorTotal, 1, 'POINT', 2, 'COMMA')}"></td>
+                            <td>
+                                <span class="badge"
+                                      th:classappend="${pedido.status == null} ? 'bg-secondary' :
+                                                      (${pedido.status.name() == 'FINALIZADO'} ? 'bg-success' :
+                                                      (${pedido.status.name() == 'CANCELADO'} ? 'bg-danger' :
+                                                      (${pedido.status.name() == 'EM_PREPARACAO'} ? 'bg-warning text-dark' :
+                                                      (${pedido.status.name() == 'PRONTO'} ? 'bg-info text-dark' : 'bg-primary'))))"
+                                      th:text="${pedido.status != null} ? ${pedido.status.descricao} : '—'">
+                                </span>
+                            </td>
+                            <td th:text="${pedido.responsavelEntrada}"></td>
+                            <td class="text-end pe-4">
+                                <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse"
+                                        th:data-bs-target="'#detalhe-' + ${pedido.id}">
+                                    <i class="bi bi-chevron-down"></i> Detalhes
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="collapse" th:id="'detalhe-' + ${pedido.id}">
+                            <td colspan="7" class="bg-light px-4">
+                                <table class="table table-sm mb-2">
+                                    <thead>
+                                        <tr>
+                                            <th>Produto</th>
+                                            <th>Qtd.</th>
+                                            <th>Preço unit.</th>
+                                            <th>Subtotal</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr th:each="item : ${pedido.itens}">
+                                            <td th:text="${item.nomeProduto}"></td>
+                                            <td th:text="${item.quantidade}"></td>
+                                            <td th:text="'R$ ' + ${#numbers.formatDecimal(item.precoUnitario, 1, 'POINT', 2, 'COMMA')}"></td>
+                                            <td th:text="'R$ ' + ${#numbers.formatDecimal(item.subtotal, 1, 'POINT', 2, 'COMMA')}"></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                                <div class="small">
+                                    <span class="me-3">Subtotal: <strong th:text="'R$ ' + ${#numbers.formatDecimal(pedido.subtotal, 1, 'POINT', 2, 'COMMA')}"></strong></span>
+                                    <span class="me-3">Desconto: <strong th:text="${#numbers.formatDecimal(pedido.percentualDesconto, 1, 'POINT', 2, 'COMMA')} + '% (R$ ' + ${#numbers.formatDecimal(pedido.valorDesconto, 1, 'POINT', 2, 'COMMA')} + ')'"></strong></span>
+                                    <span class="me-3">Total: <strong th:text="'R$ ' + ${#numbers.formatDecimal(pedido.valorTotal, 1, 'POINT', 2, 'COMMA')}"></strong></span>
+                                    <span th:if="${pedido.observacao != null and !#strings.isEmpty(pedido.observacao)}">
+                                        Observação: <em th:text="${pedido.observacao}"></em>
+                                    </span>
+                                </div>
+                            </td>
+                        </tr>
+                    </th:block>
                 </tbody>
             </table>
         </div>
@@ -70,6 +153,82 @@
             Total: <strong th:text="${#lists.size(pedidos)}"></strong> pedido(s)
         </div>
     </div>
+
+    <script th:inline="javascript" sec:authorize="hasAnyRole('GERENTE', 'ATENDENTE')">
+        const PRODUTOS = /*[[${produtosAtivos}]]*/ [];
+        const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+        const corpoItens = document.getElementById('itensPedido');
+
+        function mostrarMensagem(texto, tipo) {
+            const alerta = document.getElementById('mensagemPedido');
+            alerta.className = `alert alert-${tipo}`;
+            alerta.textContent = texto;
+        }
+
+        function adicionarItem() {
+            const linha = document.createElement('tr');
+            const select = document.createElement('select');
+            select.className = 'form-select form-select-sm produto';
+            select.required = true;
+            select.add(new Option('Selecione', '', true, true));
+            select.options[0].disabled = true;
+            PRODUTOS.forEach(p => select.add(new Option(`${p.nome} (${p.tipo})`, p.id)));
+
+            linha.innerHTML = `
+                <td></td>
+                <td><input type="number" class="form-control form-control-sm quantidade" min="1" max="50" value="1" required></td>
+                <td class="preco">—</td>
+                <td class="subtotal">—</td>
+                <td><button type="button" class="btn btn-sm btn-outline-danger"><i class="bi bi-x"></i></button></td>`;
+            linha.cells[0].appendChild(select);
+            linha.querySelector('button').addEventListener('click', () => { linha.remove(); atualizarEstimativa(); });
+            linha.addEventListener('input', atualizarEstimativa);
+            linha.addEventListener('change', atualizarEstimativa);
+            corpoItens.appendChild(linha);
+        }
+
+        function atualizarEstimativa() {
+            let total = 0;
+            corpoItens.querySelectorAll('tr').forEach(linha => {
+                const produto = PRODUTOS.find(p => p.id === linha.querySelector('.produto').value);
+                const quantidade = parseInt(linha.querySelector('.quantidade').value) || 0;
+                if (produto) {
+                    linha.querySelector('.preco').textContent = moeda.format(produto.preco);
+                    linha.querySelector('.subtotal').textContent = moeda.format(produto.preco * quantidade);
+                    total += produto.preco * quantidade;
+                }
+            });
+            document.getElementById('estimativaTotal').textContent = moeda.format(total);
+        }
+
+        document.getElementById('pedidoForm').addEventListener('submit', async (evento) => {
+            evento.preventDefault();
+            const itens = [...corpoItens.querySelectorAll('tr')].map(linha => ({
+                produtoId: linha.querySelector('.produto').value,
+                quantidade: parseInt(linha.querySelector('.quantidade').value)
+            }));
+            if (itens.length === 0) {
+                mostrarMensagem('Adicione ao menos um item ao pedido.', 'warning');
+                return;
+            }
+            const response = await fetch('/api/pedidos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    clienteId: document.getElementById('clienteId').value,
+                    observacao: document.getElementById('observacao').value,
+                    itens
+                })
+            });
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                mostrarMensagem(await lerErroApi(response), 'danger');
+            }
+        });
+
+        adicionarItem();
+    </script>
 
 </div>
 

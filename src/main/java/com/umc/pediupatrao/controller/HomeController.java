@@ -14,8 +14,11 @@ import com.umc.pediupatrao.service.PedidoService;
 import com.umc.pediupatrao.service.ProdutoService;
 import com.umc.pediupatrao.service.UsuarioService;
 import java.security.Principal;
+import java.util.Arrays;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -135,9 +138,13 @@ public class HomeController {
     // PEDIDOS
     // ========================
     @GetMapping("/pedidos")
-    public String pedidos(Model model) {
+    public String pedidos(Model model, Authentication authentication) {
         List<Pedido> pedidos = pedidoService.listarPedidos();
         model.addAttribute("pedidos", pedidos);
+        if (possuiPerfil(authentication, "GERENTE", "ATENDENTE")) {
+            model.addAttribute("clientes", clienteService.listarClientes());
+            model.addAttribute("produtosAtivos", produtoService.listarAtivos());
+        }
         model.addAttribute("content", "pedidos :: content");
         log.info("Carregando fragmento: pedidos :: content");
         return "layout";
@@ -216,6 +223,12 @@ public class HomeController {
     public String configuracoes(Model model) {
         model.addAttribute("content", "configuracoes :: content");
         return "layout";
+    }
+
+    private boolean possuiPerfil(Authentication authentication, String... perfis) {
+        return authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(autoridade -> Arrays.stream(perfis).anyMatch(p -> autoridade.equals("ROLE_" + p)));
     }
 
     @GetMapping("/teste")
