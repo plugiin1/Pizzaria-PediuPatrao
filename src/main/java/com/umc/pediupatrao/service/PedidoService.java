@@ -18,6 +18,8 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -34,6 +36,7 @@ public class PedidoService {
         this.produtoRepository = produtoRepository;
     }
 
+    @PreAuthorize("hasAnyRole('GERENTE', 'ATENDENTE')")
     public Pedido criarPedido(NovoPedidoRequest request, String responsavel) {
         Cliente cliente = clienteRepository.findById(request.clienteId())
                 .orElseThrow(() -> new RegraNegocioException("Cliente informado não está cadastrado."));
@@ -44,9 +47,7 @@ public class PedidoService {
         pedido.setItens(montarItens(request.itens()));
         pedido.setObservacao(request.observacao() == null ? null : request.observacao().trim());
         pedido.setPercentualDesconto(BigDecimal.ZERO);
-        pedido.setStatus(StatusPedido.RECEBIDO);
-        pedido.setDataHoraEntrada(LocalDateTime.now());
-        pedido.setResponsavelEntrada(responsavel);
+        pedido.registrarEntrada(responsavel, LocalDateTime.now());
         pedido.recalcularValores();
 
         return pedidoRepository.save(pedido);
@@ -61,10 +62,34 @@ public class PedidoService {
                 .orElseThrow(() -> new RecursoNaoEncontradoException("Pedido não encontrado."));
     }
 
-    public Pedido atualizarStatus(String id, StatusPedido status) {
+    @PreAuthorize("hasAnyRole('GERENTE', 'ATENDENTE')")
+    public Pedido atualizarStatus(String id, StatusPedido novoStatus, String responsavel) {
+        if (novoStatus == null) {
+            throw new RegraNegocioException("Informe o novo status do pedido.");
+        }
         Pedido pedido = buscarPorId(id);
-        pedido.setStatus(status);
+        StatusPedido atual = pedido.getStatus();
+
+        if (atual == StatusPedido.CANCELADO) {
+            throw new RegraNegocioException("Pedido cancelado não pode ter o status alterado.");
+        }
+        if (novoStatus == StatusPedido.CANCELADO) {
+            throw new RegraNegocioException("O cancelamento deve ser feito pela operação de cancelamento, exclusiva do gerente.");
+        }
+        if (atual == null || !atual.podeAvancarPara(novoStatus)) {
+            throw new RegraNegocioException(String.format("Transição inválida: %s → %s. Próximo status permitido: %s.",
+                    atual == null ? "sem status" : atual.getDescricao(), novoStatus.getDescricao(), descreverProximos(atual)));
+        }
+
+        pedido.alterarStatus(novoStatus, responsavel, LocalDateTime.now());
         return pedidoRepository.save(pedido);
+    }
+
+    private String descreverProximos(StatusPedido atual) {
+        if (atual == null || atual.getProximos().isEmpty()) {
+            return "nenhum";
+        }
+        return atual.getProximos().stream().map(StatusPedido::getDescricao).collect(Collectors.joining(" ou "));
     }
 
     private List<ItemPedido> montarItens(List<ItemPedidoRequest> itensRequest) {

@@ -80,8 +80,8 @@
                         <th>Itens</th>
                         <th>Total</th>
                         <th>Status</th>
-                        <th>Responsável</th>
-                        <th class="text-end pe-4"></th>
+                        <th>Saída</th>
+                        <th class="text-end pe-4">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -93,7 +93,7 @@
                     </tr>
                     <th:block th:each="pedido : ${pedidos}">
                         <tr>
-                            <td class="ps-4" th:text="${pedido.dataHoraEntrada != null} ? ${#temporals.format(pedido.dataHoraEntrada, 'dd/MM/yyyy HH:mm')} : '—'"></td>
+                            <td class="ps-4" th:text="${pedido.dataHoraEntrada != null} ? ${#temporals.format(pedido.dataHoraEntrada, 'dd/MM HH:mm')} + ' · ' + ${pedido.responsavelEntrada} : '—'"></td>
                             <td th:text="${pedido.clienteNome}"></td>
                             <td th:text="${pedido.quantidadeTotalItens} + ' item(ns)'"></td>
                             <td class="fw-medium" th:text="'R$ ' + ${#numbers.formatDecimal(pedido.valorTotal, 1, 'POINT', 2, 'COMMA')}"></td>
@@ -107,8 +107,20 @@
                                       th:text="${pedido.status != null} ? ${pedido.status.descricao} : '—'">
                                 </span>
                             </td>
-                            <td th:text="${pedido.responsavelEntrada}"></td>
-                            <td class="text-end pe-4">
+                            <td>
+                                <span th:if="${pedido.dataHoraSaida == null}" class="text-muted">—</span>
+                                <span th:if="${pedido.dataHoraSaida != null}"
+                                      th:text="${#temporals.format(pedido.dataHoraSaida, 'dd/MM HH:mm')} + ' · ' + ${pedido.responsavelSaida}"></span>
+                            </td>
+                            <td class="text-end pe-4 text-nowrap">
+                                <th:block sec:authorize="hasAnyRole('GERENTE', 'ATENDENTE')" th:if="${pedido.status != null}">
+                                    <button th:each="proximo : ${pedido.status.proximos}"
+                                            class="btn btn-sm btn-outline-success me-1"
+                                            th:data-id="${pedido.id}" th:data-status="${proximo.name()}"
+                                            onclick="avancarStatus(this.dataset.id, this.dataset.status, this.textContent.trim())">
+                                        <i class="bi bi-arrow-right-circle"></i> <span th:text="${proximo.descricao}"></span>
+                                    </button>
+                                </th:block>
                                 <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse"
                                         th:data-bs-target="'#detalhe-' + ${pedido.id}">
                                     <i class="bi bi-chevron-down"></i> Detalhes
@@ -142,6 +154,31 @@
                                     <span th:if="${pedido.observacao != null and !#strings.isEmpty(pedido.observacao)}">
                                         Observação: <em th:text="${pedido.observacao}"></em>
                                     </span>
+                                </div>
+                                <div class="row small mt-3">
+                                    <div class="col-md-4">
+                                        <strong>Entrada:</strong>
+                                        <span th:text="${pedido.dataHoraEntrada != null} ? ${#temporals.format(pedido.dataHoraEntrada, 'dd/MM/yyyy HH:mm:ss')} + ' por ' + ${pedido.responsavelEntrada} : '—'"></span>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Saída:</strong>
+                                        <span th:text="${pedido.dataHoraSaida != null} ? ${#temporals.format(pedido.dataHoraSaida, 'dd/MM/yyyy HH:mm:ss')} + ' por ' + ${pedido.responsavelSaida} : 'ainda não saiu'"></span>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <strong>Finalização:</strong>
+                                        <span th:text="${pedido.dataHoraFinalizacao != null} ? ${#temporals.format(pedido.dataHoraFinalizacao, 'dd/MM/yyyy HH:mm:ss')} + ' por ' + ${pedido.responsavelFinalizacao} : '—'"></span>
+                                    </div>
+                                </div>
+                                <div class="small mt-3" th:if="${!#lists.isEmpty(pedido.historicoStatus)}">
+                                    <strong>Histórico de status</strong>
+                                    <ul class="list-unstyled mb-2 mt-1">
+                                        <li th:each="h : ${pedido.historicoStatus}">
+                                            <i class="bi bi-clock-history me-1 text-muted"></i>
+                                            <span th:text="${#temporals.format(h.dataHora, 'dd/MM/yyyy HH:mm:ss')}"></span> —
+                                            <span th:text="${h.statusAnterior != null} ? ${h.statusAnterior.descricao} + ' → ' + ${h.statusNovo.descricao} : ${h.statusNovo.descricao}"></span>
+                                            (<span th:text="${h.usuario}"></span>)
+                                        </li>
+                                    </ul>
                                 </div>
                             </td>
                         </tr>
@@ -226,6 +263,21 @@
                 mostrarMensagem(await lerErroApi(response), 'danger');
             }
         });
+
+        async function avancarStatus(id, status, descricao) {
+            if (!confirm(`Alterar o status do pedido para "${descricao}"?`)) {
+                return;
+            }
+            const response = await fetch(`/api/pedidos/${encodeURIComponent(id)}/status?status=${encodeURIComponent(status)}`, {
+                method: 'PUT'
+            });
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                mostrarMensagem(await lerErroApi(response), 'danger');
+                window.scrollTo(0, 0);
+            }
+        }
 
         adicionarItem();
     </script>

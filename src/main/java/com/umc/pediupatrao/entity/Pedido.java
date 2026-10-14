@@ -37,6 +37,32 @@ public class Pedido {
     private StatusPedido status;
     private LocalDateTime dataHoraEntrada;
     private String responsavelEntrada;
+    private LocalDateTime dataHoraSaida;
+    private String responsavelSaida;
+    private LocalDateTime dataHoraFinalizacao;
+    private String responsavelFinalizacao;
+    private List<HistoricoStatus> historicoStatus = new ArrayList<>();
+
+    public void registrarEntrada(String responsavel, LocalDateTime dataHora) {
+        this.status = StatusPedido.RECEBIDO;
+        this.dataHoraEntrada = dataHora;
+        this.responsavelEntrada = responsavel;
+        historicoStatus.add(new HistoricoStatus(null, StatusPedido.RECEBIDO, dataHora, responsavel));
+    }
+
+    public void alterarStatus(StatusPedido novoStatus, String responsavel, LocalDateTime dataHora) {
+        StatusPedido anterior = this.status;
+        if (novoStatus.isSaida()) {
+            this.dataHoraSaida = dataHora;
+            this.responsavelSaida = responsavel;
+        }
+        if (novoStatus == StatusPedido.FINALIZADO) {
+            this.dataHoraFinalizacao = dataHora;
+            this.responsavelFinalizacao = responsavel;
+        }
+        this.status = novoStatus;
+        historicoStatus.add(new HistoricoStatus(anterior, novoStatus, dataHora, responsavel));
+    }
 
     public void recalcularValores() {
         subtotal = itens.stream()
@@ -116,23 +142,31 @@ public class Pedido {
         return status;
     }
 
-    public void setStatus(StatusPedido status) {
-        this.status = status;
-    }
-
     public LocalDateTime getDataHoraEntrada() {
         return dataHoraEntrada;
-    }
-
-    public void setDataHoraEntrada(LocalDateTime dataHoraEntrada) {
-        this.dataHoraEntrada = dataHoraEntrada;
     }
 
     public String getResponsavelEntrada() {
         return responsavelEntrada;
     }
 
-    public void setResponsavelEntrada(String responsavelEntrada) {
-        this.responsavelEntrada = responsavelEntrada;
+    public LocalDateTime getDataHoraSaida() {
+        return dataHoraSaida;
+    }
+
+    public String getResponsavelSaida() {
+        return responsavelSaida;
+    }
+
+    public LocalDateTime getDataHoraFinalizacao() {
+        return dataHoraFinalizacao;
+    }
+
+    public String getResponsavelFinalizacao() {
+        return responsavelFinalizacao;
+    }
+
+    public List<HistoricoStatus> getHistoricoStatus() {
+        return historicoStatus;
     }
 }

@@ -38,7 +38,7 @@ public class PedidoController {
     }
 
     @PutMapping("/{id}/status")
-    public Pedido atualizarStatus(@PathVariable String id, @RequestParam StatusPedido status) {
-        return pedidoService.atualizarStatus(id, status);
+    public Pedido atualizarStatus(@PathVariable String id, @RequestParam StatusPedido status, Principal principal) {
+        return pedidoService.atualizarStatus(id, status, principal.getName());
     }
 }

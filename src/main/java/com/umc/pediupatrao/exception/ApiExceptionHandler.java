@@ -45,8 +45,13 @@ public class ApiExceptionHandler {
         return resposta(HttpStatus.BAD_REQUEST, mensagem);
     }
 
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, Object>> parametroInvalido(MethodArgumentTypeMismatchException ex) {
+        return resposta(HttpStatus.BAD_REQUEST, "Valor inválido para o parâmetro '" + ex.getName() + "'.");
+    }
+
     @ExceptionHandler({IllegalArgumentException.class, HttpMessageNotReadableException.class,
-        MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class})
+        MissingServletRequestParameterException.class})
     public ResponseEntity<Map<String, Object>> requisicaoInvalida(Exception ex) {
         String mensagem = ex instanceof IllegalArgumentException ? ex.getMessage() : "Requisição inválida.";
         return resposta(HttpStatus.BAD_REQUEST, mensagem);
