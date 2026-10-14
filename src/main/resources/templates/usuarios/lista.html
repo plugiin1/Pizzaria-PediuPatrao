@@ -36,7 +36,7 @@
                     <tr>
                         <th scope="col" class="ps-4">#</th>
                         <th scope="col">Username</th>
-                        <th scope="col">Role</th>
+                        <th scope="col">Perfil</th>
                         <th scope="col" class="text-end pe-4">Ações</th>
                     </tr>
                 </thead>
@@ -61,8 +61,8 @@
                         </td>
                         <td>
                             <span class="badge"
-                                  th:classappend="${usuario.role == 'ADMIN'} ? 'bg-danger' : 'bg-secondary'"
-                                  th:text="${usuario.role}">
+                                  th:classappend="${usuario.perfil == null} ? 'bg-dark' : (${usuario.perfil.name() == 'ADMIN'} ? 'bg-danger' : (${usuario.perfil.name() == 'GERENTE'} ? 'bg-primary' : 'bg-secondary'))"
+                                  th:text="${usuario.perfil != null} ? ${usuario.perfil.descricao} : 'Sem perfil'">
                             </span>
                         </td>
                         <td class="text-end pe-4">

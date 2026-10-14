@@ -1,15 +1,22 @@
 package com.umc.pediupatrao.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-@Document(collection = "usuarios") // Define a coleção no MongoDB
+@Document(collection = "usuarios")
 public class Usuario {
     @Id
     private String id;
-    private String username; // Nome de usuário para login
-    private String password; // Senha criptografada
-    private String role;     // Papel do usuário, como ADMIN ou USER
+
+    @Indexed(unique = true)
+    private String username;
+
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String password;
+
+    private Perfil perfil;
 
     public String getId() {
         return id;
@@ -35,13 +42,11 @@ public class Usuario {
         this.password = password;
     }
 
-    public String getRole() {
-        return role;
+    public Perfil getPerfil() {
+        return perfil;
     }
 
-    public void setRole(String role) {
-        this.role = role;
+    public void setPerfil(Perfil perfil) {
+        this.perfil = perfil;
     }
-    
-    
 }

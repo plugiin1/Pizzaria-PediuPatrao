@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <title>Lista de Clientes</title>
 </head>
@@ -9,9 +9,20 @@
         <h2 class="fw-bold mb-0">
             <i class="bi bi-person-raised-hand me-2 text-primary"></i>Clientes
         </h2>
-        <a href="/clientes/novo" class="btn btn-primary">
+        <a href="/clientes/novo" class="btn btn-primary" sec:authorize="hasRole('ATENDENTE')">
             <i class="bi bi-plus-lg me-1"></i> Novo Cliente
         </a>
+    </div>
+
+    <div class="alert alert-success alert-dismissible fade show" th:if="${sucesso}" role="alert">
+        <i class="bi bi-check-circle-fill me-2"></i>
+        <span th:text="${sucesso}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <div class="alert alert-danger alert-dismissible fade show" th:if="${erro}" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        <span th:text="${erro}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 
     <!-- Tabela de clientes -->
@@ -33,9 +44,17 @@
         </div>
     </div>
 
-    <script>
+    <script th:inline="javascript">
+        const PODE_EDITAR = /*[[${#authorization.expression('hasRole(''ATENDENTE'')')}]]*/ false;
+        const PODE_EXCLUIR = /*[[${#authorization.expression('hasRole(''GERENTE'')')}]]*/ false;
         const API_URL = '/api/clientes';
         const tabelaClientes = document.getElementById('clientes-tabela');
+
+        function escapar(texto) {
+            const div = document.createElement('div');
+            div.textContent = texto == null ? '' : String(texto);
+            return div.innerHTML;
+        }
 
         function formatarEndereco(cliente) {
             const partes = [
@@ -47,11 +66,15 @@
                 cliente.estado
             ].filter(p => p && p.trim() !== '');
 
-            return partes.length > 0 ? partes.join(', ') : (cliente.endereco || '—');
+            return escapar(partes.length > 0 ? partes.join(', ') : (cliente.endereco || '—'));
         }
 
         async function carregarClientes() {
             const response = await fetch(API_URL);
+            if (!response.ok) {
+                tabelaClientes.innerHTML = `<tr><td colspan="4" class="text-center text-danger py-4">${escapar(await lerErroApi(response))}</td></tr>`;
+                return;
+            }
             const clientes = await response.json();
             tabelaClientes.innerHTML = '';
 
@@ -68,18 +91,20 @@
 
             clientes.forEach(cliente => {
                 const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${cliente.nome || '—'}</td>
-                    <td>${cliente.telefone || '—'}</td>
-                    <td>${formatarEndereco(cliente)}</td>
-                    <td class="text-end pe-4">
-                        <a href="/clientes/editar/${cliente.id}" class="btn btn-sm btn-outline-primary me-1">
+                const id = encodeURIComponent(cliente.id);
+                const botaoEditar = PODE_EDITAR ? `
+                        <a href="/clientes/editar/${id}" class="btn btn-sm btn-outline-primary me-1">
                             <i class="bi bi-pencil-fill"></i> Editar
-                        </a>
-                        <button class="btn btn-sm btn-outline-danger" onclick="excluirCliente('${cliente.id}')">
+                        </a>` : '';
+                const botaoExcluir = PODE_EXCLUIR ? `
+                        <button class="btn btn-sm btn-outline-danger" onclick="excluirCliente('${id}')">
                             <i class="bi bi-trash-fill"></i> Excluir
-                        </button>
-                    </td>
+                        </button>` : '';
+                row.innerHTML = `
+                    <td>${escapar(cliente.nome || '—')}</td>
+                    <td>${escapar(cliente.telefone || '—')}</td>
+                    <td>${formatarEndereco(cliente)}</td>
+                    <td class="text-end pe-4">${botaoEditar}${botaoExcluir}</td>
                 `;
                 tabelaClientes.appendChild(row);
             });
@@ -92,7 +117,7 @@
                     alert('Cliente excluído com sucesso!');
                     carregarClientes();
                 } else {
-                    alert('Erro ao excluir o cliente.');
+                    alert(await lerErroApi(response));
                 }
             }
         }

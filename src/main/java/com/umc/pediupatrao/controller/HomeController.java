@@ -4,12 +4,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import com.umc.pediupatrao.entity.Cliente;
 import com.umc.pediupatrao.entity.Pedido;
+import com.umc.pediupatrao.entity.Perfil;
 import com.umc.pediupatrao.entity.Produto;
 import com.umc.pediupatrao.entity.Usuario;
+import com.umc.pediupatrao.exception.RecursoNaoEncontradoException;
+import com.umc.pediupatrao.exception.RegraNegocioException;
 import com.umc.pediupatrao.service.ClienteService;
 import com.umc.pediupatrao.service.PedidoService;
 import com.umc.pediupatrao.service.ProdutoService;
 import com.umc.pediupatrao.service.UsuarioService;
+import java.security.Principal;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
@@ -53,7 +57,7 @@ public class HomeController {
     // ========================
     @GetMapping("/usuarios")
     public String listarUsuarios(Model model) {
-        List<Usuario> usuarios = (List<Usuario>) usuarioService.listarTodos();
+        List<Usuario> usuarios = usuarioService.listarTodos();
         model.addAttribute("usuarios", usuarios);
         model.addAttribute("content", "usuarios/lista :: content");
         log.info("Carregando fragmento: usuarios/lista :: content");
@@ -63,6 +67,7 @@ public class HomeController {
     @GetMapping("/usuarios/novo")
     public String novoUsuarioForm(Model model) {
         model.addAttribute("usuario", new Usuario());
+        model.addAttribute("perfis", Perfil.values());
         model.addAttribute("content", "usuarios/form :: content");
         return "layout";
     }
@@ -71,6 +76,7 @@ public class HomeController {
     public String editarUsuarioForm(@PathVariable String id, Model model,
             RedirectAttributes redirectAttributes) {
         boolean encontrado = usuarioService.buscarPorId(id).map(u -> {
+            u.setPassword(null);
             model.addAttribute("usuario", u);
             return true;
         }).orElse(false);
@@ -80,6 +86,7 @@ public class HomeController {
             return "redirect:/usuarios";
         }
 
+        model.addAttribute("perfis", Perfil.values());
         model.addAttribute("content", "usuarios/form :: content");
         return "layout";
     }
@@ -87,25 +94,40 @@ public class HomeController {
     @PostMapping("/usuarios/salvar")
     public String salvarUsuario(@ModelAttribute Usuario usuario,
             RedirectAttributes redirectAttributes) {
-        usuarioService.salvarUsuario(usuario);
-        redirectAttributes.addFlashAttribute("sucesso", "Usuário criado com sucesso!");
+        try {
+            usuarioService.criarUsuario(usuario);
+            redirectAttributes.addFlashAttribute("sucesso", "Usuário criado com sucesso!");
+        } catch (RegraNegocioException e) {
+            redirectAttributes.addFlashAttribute("erro", e.getMessage());
+            return "redirect:/usuarios/novo";
+        }
         return "redirect:/usuarios";
     }
 
     @PostMapping("/usuarios/editar/{id}")
     public String atualizarUsuario(@PathVariable String id,
             @ModelAttribute Usuario usuario,
+            Principal principal,
             RedirectAttributes redirectAttributes) {
-        usuarioService.atualizarUsuario(id, usuario);
-        redirectAttributes.addFlashAttribute("sucesso", "Usuário atualizado com sucesso!");
+        try {
+            usuarioService.atualizarUsuario(id, usuario, principal.getName());
+            redirectAttributes.addFlashAttribute("sucesso", "Usuário atualizado com sucesso!");
+        } catch (RegraNegocioException | RecursoNaoEncontradoException e) {
+            redirectAttributes.addFlashAttribute("erro", e.getMessage());
+        }
         return "redirect:/usuarios";
     }
 
     @PostMapping("/usuarios/deletar/{id}")
     public String deletarUsuario(@PathVariable String id,
+            Principal principal,
             RedirectAttributes redirectAttributes) {
-        usuarioService.deletarUsuario(id);
-        redirectAttributes.addFlashAttribute("sucesso", "Usuário removido com sucesso!");
+        try {
+            usuarioService.deletarUsuario(id, principal.getName());
+            redirectAttributes.addFlashAttribute("sucesso", "Usuário removido com sucesso!");
+        } catch (RegraNegocioException | RecursoNaoEncontradoException e) {
+            redirectAttributes.addFlashAttribute("erro", e.getMessage());
+        }
         return "redirect:/usuarios";
     }
 
