@@ -1,18 +1,25 @@
 package com.umc.pediupatrao.service;
 
+import com.umc.pediupatrao.entity.AlteracaoCampo;
 import com.umc.pediupatrao.entity.Perfil;
+import com.umc.pediupatrao.entity.TipoOperacao;
 import com.umc.pediupatrao.entity.Usuario;
 import com.umc.pediupatrao.exception.RecursoNaoEncontradoException;
 import com.umc.pediupatrao.exception.RegraNegocioException;
 import com.umc.pediupatrao.repository.UsuarioRepository;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Transactional
 @PreAuthorize("hasRole('ADMIN')")
 public class UsuarioService {
 
@@ -21,10 +28,13 @@ public class UsuarioService {
 
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
+    private final AuditoriaService auditoriaService;
 
-    public UsuarioService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder) {
+    public UsuarioService(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder,
+            AuditoriaService auditoriaService) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
+        this.auditoriaService = auditoriaService;
     }
 
     public Optional<Usuario> buscarPorId(String id) {
@@ -47,7 +57,10 @@ public class UsuarioService {
         novo.setUsername(username);
         novo.setPassword(passwordEncoder.encode(dados.getPassword()));
         novo.setPerfil(dados.getPerfil());
-        return usuarioRepository.save(novo);
+        Usuario salvo = usuarioRepository.save(novo);
+        auditoriaService.registrar(TipoOperacao.INCLUSAO_USUARIO, AuditoriaService.ENTIDADE_USUARIO, salvo.getId(),
+                AlteracaoCampo.comparar(null, camposAuditaveis(salvo)), null);
+        return salvo;
     }
 
     public Usuario atualizarUsuario(String id, Usuario dados, String usernameLogado) {
@@ -68,13 +81,21 @@ public class UsuarioService {
             garantirOutroAdministrador();
         }
 
+        Map<String, String> antes = camposAuditaveis(existente);
         existente.setUsername(username);
         existente.setPerfil(dados.getPerfil());
+        List<AlteracaoCampo> alteracoes = new ArrayList<>(AlteracaoCampo.comparar(antes, camposAuditaveis(existente)));
         if (dados.getPassword() != null && !dados.getPassword().isBlank()) {
             validarSenha(dados.getPassword());
             existente.setPassword(passwordEncoder.encode(dados.getPassword()));
+            alteracoes.add(new AlteracaoCampo("senha", null, "[redefinida]"));
         }
-        return usuarioRepository.save(existente);
+        Usuario salvo = usuarioRepository.save(existente);
+        if (!alteracoes.isEmpty()) {
+            auditoriaService.registrar(TipoOperacao.ALTERACAO_USUARIO, AuditoriaService.ENTIDADE_USUARIO, salvo.getId(),
+                    alteracoes, null);
+        }
+        return salvo;
     }
 
     public void deletarUsuario(String id, String usernameLogado) {
@@ -87,6 +108,15 @@ public class UsuarioService {
             garantirOutroAdministrador();
         }
         usuarioRepository.delete(existente);
+        auditoriaService.registrar(TipoOperacao.EXCLUSAO_USUARIO, AuditoriaService.ENTIDADE_USUARIO, id,
+                AlteracaoCampo.comparar(camposAuditaveis(existente), null), null);
+    }
+
+    private Map<String, String> camposAuditaveis(Usuario usuario) {
+        Map<String, String> campos = new LinkedHashMap<>();
+        campos.put("username", usuario.getUsername());
+        campos.put("perfil", usuario.getPerfil() == null ? null : usuario.getPerfil().name());
+        return campos;
     }
 
     private void garantirOutroAdministrador() {

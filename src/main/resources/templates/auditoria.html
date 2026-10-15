@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Auditoria</title>
+</head>
+<body>
+
+<div th:fragment="content">
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="fw-bold mb-0">
+            <i class="bi bi-shield-check me-2 text-primary"></i>Auditoria
+        </h2>
+        <span class="text-muted small">Registros somente leitura · telefones exibidos parcialmente</span>
+    </div>
+
+    <form class="card shadow-sm mb-4" th:action="@{/auditoria}" method="get">
+        <div class="card-body row g-2 align-items-end">
+            <div class="col-md-2">
+                <label for="entidade" class="form-label small mb-1">Entidade</label>
+                <select id="entidade" name="entidade" class="form-select form-select-sm">
+                    <option value="">Todas</option>
+                    <option value="PEDIDO" th:selected="${filtro.entidade == 'PEDIDO'}">Pedido</option>
+                    <option value="CLIENTE" th:selected="${filtro.entidade == 'CLIENTE'}">Cliente</option>
+                    <option value="USUARIO" th:selected="${filtro.entidade == 'USUARIO'}">Usuário</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="operacao" class="form-label small mb-1">Operação</label>
+                <select id="operacao" name="operacao" class="form-select form-select-sm">
+                    <option value="">Todas</option>
+                    <option th:each="op : ${operacoes}" th:value="${op}" th:text="${op.descricao}"
+                            th:selected="${filtro.operacao == op}"></option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="usuario" class="form-label small mb-1">Usuário</label>
+                <input type="text" id="usuario" name="usuario" class="form-control form-control-sm" th:value="${filtro.usuario}">
+            </div>
+            <div class="col-md-2">
+                <label for="entidadeId" class="form-label small mb-1">ID da entidade</label>
+                <input type="text" id="entidadeId" name="entidadeId" class="form-control form-control-sm" th:value="${filtro.entidadeId}">
+            </div>
+            <div class="col-md-1">
+                <label for="dataInicial" class="form-label small mb-1">De</label>
+                <input type="date" id="dataInicial" name="dataInicial" class="form-control form-control-sm" th:value="${filtro.dataInicial}">
+            </div>
+            <div class="col-md-1">
+                <label for="dataFinal" class="form-label small mb-1">Até</label>
+                <input type="date" id="dataFinal" name="dataFinal" class="form-control form-control-sm" th:value="${filtro.dataFinal}">
+            </div>
+            <div class="col-md-1 d-flex gap-1">
+                <button type="submit" class="btn btn-sm btn-primary w-100"><i class="bi bi-funnel"></i></button>
+                <a th:href="@{/auditoria}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x"></i></a>
+            </div>
+        </div>
+    </form>
+
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <table class="table align-middle mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th class="ps-4" style="width: 150px;">Data e hora</th>
+                        <th style="width: 140px;">Usuário</th>
+                        <th style="width: 200px;">Operação</th>
+                        <th>Alterações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr th:if="${#lists.isEmpty(registros)}">
+                        <td colspan="4" class="text-center text-muted py-5">
+                            <i class="bi bi-inbox fs-3 d-block mb-2"></i>
+                            Nenhum registro de auditoria encontrado.
+                        </td>
+                    </tr>
+                    <tr th:each="r : ${registros}">
+                        <td class="ps-4 small" th:text="${#temporals.format(r.dataHora, 'dd/MM/yyyy — HH:mm:ss')}"></td>
+                        <td>
+                            <div class="fw-medium" th:text="${r.usuario}"></div>
+                            <span class="badge bg-light text-dark border" th:text="${r.perfil}"></span>
+                        </td>
+                        <td>
+                            <div th:text="${r.operacao.descricao}"></div>
+                            <a class="small text-muted text-decoration-none"
+                               th:href="@{/auditoria(entidade=${r.entidade}, entidadeId=${r.entidadeId})}"
+                               th:text="${r.entidade} + ' #' + ${#strings.substring(r.entidadeId, #strings.length(r.entidadeId) > 8 ? #strings.length(r.entidadeId) - 8 : 0)}"
+                               th:title="${r.entidadeId}"></a>
+                        </td>
+                        <td>
+                            <table class="table table-sm table-borderless mb-0 small">
+                                <thead class="text-muted">
+                                    <tr>
+                                        <th style="width: 25%;">Campo</th>
+                                        <th style="width: 37%;">Valor anterior</th>
+                                        <th>Novo valor</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr th:each="a : ${r.alteracoes}">
+                                        <td class="fw-medium" th:text="${a.campo}"></td>
+                                        <td class="text-danger" th:text="${a.valorAnterior != null} ? ${a.valorAnterior} : '—'"></td>
+                                        <td class="text-success" th:text="${a.valorNovo != null} ? ${a.valorNovo} : '—'"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div class="small mt-1" th:if="${r.justificativa != null}">
+                                <strong>Justificativa:</strong> <em th:text="${r.justificativa}"></em>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer text-muted small" th:if="${!#lists.isEmpty(registros)}">
+            <strong th:text="${#lists.size(registros)}"></strong> registro(s) — exibindo no máximo os 500 mais recentes
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

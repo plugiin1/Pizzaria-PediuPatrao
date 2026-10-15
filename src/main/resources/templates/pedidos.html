@@ -197,6 +197,11 @@
                                     (status anterior: <span th:text="${pedido.statusAntesCancelamento != null} ? ${pedido.statusAntesCancelamento.descricao} : '—'"></span>).
                                     <br>Justificativa: <em th:text="${pedido.justificativaCancelamento}"></em>
                                 </div>
+                                <div class="small mt-2" sec:authorize="hasAnyRole('ADMIN', 'GERENTE')">
+                                    <a th:href="@{/auditoria(entidade='PEDIDO', entidadeId=${pedido.id})}">
+                                        <i class="bi bi-shield-check"></i> Ver auditoria deste pedido
+                                    </a>
+                                </div>
                                 <div class="small mt-3" th:if="${!#lists.isEmpty(pedido.historicoStatus)}">
                                     <strong>Histórico de status</strong>
                                     <ul class="list-unstyled mb-2 mt-1">

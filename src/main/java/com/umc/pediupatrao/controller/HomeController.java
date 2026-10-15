@@ -2,21 +2,26 @@ package com.umc.pediupatrao.controller;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.umc.pediupatrao.dto.FiltroAuditoria;
 import com.umc.pediupatrao.entity.Cliente;
 import com.umc.pediupatrao.entity.Pedido;
 import com.umc.pediupatrao.entity.Perfil;
 import com.umc.pediupatrao.entity.Produto;
+import com.umc.pediupatrao.entity.TipoOperacao;
 import com.umc.pediupatrao.entity.Usuario;
 import com.umc.pediupatrao.exception.RecursoNaoEncontradoException;
 import com.umc.pediupatrao.exception.RegraNegocioException;
+import com.umc.pediupatrao.service.AuditoriaService;
 import com.umc.pediupatrao.service.ClienteService;
 import com.umc.pediupatrao.service.PedidoService;
 import com.umc.pediupatrao.service.ProdutoService;
 import com.umc.pediupatrao.service.UsuarioService;
 import java.security.Principal;
+import java.time.LocalDate;
 import java.util.Arrays;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
@@ -25,6 +30,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 @Controller
@@ -43,6 +49,9 @@ public class HomeController {
 
     @Autowired
     private UsuarioService usuarioService;
+
+    @Autowired
+    private AuditoriaService auditoriaService;
 
     @GetMapping("/login")
     public String login() {
@@ -184,8 +193,13 @@ public class HomeController {
     @PostMapping("/clientes/salvar")
     public String salvarCliente(@ModelAttribute Cliente cliente,
             RedirectAttributes redirectAttributes) {
-        clienteService.salvar(cliente);
-        redirectAttributes.addFlashAttribute("sucesso", "Cliente criado com sucesso!");
+        cliente.setId(null);
+        try {
+            clienteService.salvar(cliente);
+            redirectAttributes.addFlashAttribute("sucesso", "Cliente criado com sucesso!");
+        } catch (RegraNegocioException e) {
+            redirectAttributes.addFlashAttribute("erro", e.getMessage());
+        }
         return "redirect:/clientes";
     }
 
@@ -211,9 +225,32 @@ public class HomeController {
             @ModelAttribute Cliente cliente,
             RedirectAttributes redirectAttributes) {
         cliente.setId(id);
-        clienteService.salvar(cliente);
-        redirectAttributes.addFlashAttribute("sucesso", "Cliente atualizado com sucesso!");
+        try {
+            clienteService.salvar(cliente);
+            redirectAttributes.addFlashAttribute("sucesso", "Cliente atualizado com sucesso!");
+        } catch (RegraNegocioException | RecursoNaoEncontradoException e) {
+            redirectAttributes.addFlashAttribute("erro", e.getMessage());
+        }
         return "redirect:/clientes";
+    }
+
+    // ========================
+    // AUDITORIA
+    // ========================
+    @GetMapping("/auditoria")
+    public String auditoria(@RequestParam(required = false) String entidade,
+            @RequestParam(required = false) String entidadeId,
+            @RequestParam(required = false) TipoOperacao operacao,
+            @RequestParam(required = false) String usuario,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicial,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFinal,
+            Model model) {
+        FiltroAuditoria filtro = new FiltroAuditoria(entidade, entidadeId, operacao, usuario, dataInicial, dataFinal);
+        model.addAttribute("registros", auditoriaService.consultar(filtro));
+        model.addAttribute("filtro", filtro);
+        model.addAttribute("operacoes", TipoOperacao.values());
+        model.addAttribute("content", "auditoria :: content");
+        return "layout";
     }
 
     // ========================
