@@ -42,6 +42,28 @@ public class Pedido {
     private LocalDateTime dataHoraFinalizacao;
     private String responsavelFinalizacao;
     private List<HistoricoStatus> historicoStatus = new ArrayList<>();
+    private LocalDateTime dataHoraDesconto;
+    private String responsavelDesconto;
+    private LocalDateTime dataHoraCancelamento;
+    private String responsavelCancelamento;
+    private String justificativaCancelamento;
+    private StatusPedido statusAntesCancelamento;
+
+    public void aplicarDesconto(BigDecimal percentual, String responsavel, LocalDateTime dataHora) {
+        this.percentualDesconto = percentual.setScale(2, RoundingMode.HALF_UP);
+        this.dataHoraDesconto = dataHora;
+        this.responsavelDesconto = responsavel;
+        recalcularValores();
+    }
+
+    public void cancelar(String justificativa, String responsavel, LocalDateTime dataHora) {
+        this.statusAntesCancelamento = this.status;
+        this.justificativaCancelamento = justificativa;
+        this.dataHoraCancelamento = dataHora;
+        this.responsavelCancelamento = responsavel;
+        this.status = StatusPedido.CANCELADO;
+        historicoStatus.add(new HistoricoStatus(statusAntesCancelamento, StatusPedido.CANCELADO, dataHora, responsavel));
+    }
 
     public void registrarEntrada(String responsavel, LocalDateTime dataHora) {
         this.status = StatusPedido.RECEBIDO;
@@ -168,5 +190,29 @@ public class Pedido {
 
     public List<HistoricoStatus> getHistoricoStatus() {
         return historicoStatus;
+    }
+
+    public LocalDateTime getDataHoraDesconto() {
+        return dataHoraDesconto;
+    }
+
+    public String getResponsavelDesconto() {
+        return responsavelDesconto;
+    }
+
+    public LocalDateTime getDataHoraCancelamento() {
+        return dataHoraCancelamento;
+    }
+
+    public String getResponsavelCancelamento() {
+        return responsavelCancelamento;
+    }
+
+    public String getJustificativaCancelamento() {
+        return justificativaCancelamento;
+    }
+
+    public StatusPedido getStatusAntesCancelamento() {
+        return statusAntesCancelamento;
     }
 }

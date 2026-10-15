@@ -70,6 +70,7 @@ public class SecurityConfig {
 
                         .requestMatchers("/usuarios/**", "/api/usuarios/**").hasRole(ADMIN)
 
+                        .requestMatchers(HttpMethod.POST, "/api/pedidos/*/desconto", "/api/pedidos/*/cancelamento").hasRole(GERENTE)
                         .requestMatchers(HttpMethod.GET, "/pedidos", "/api/pedidos/**").hasAnyRole(ADMIN, GERENTE, ATENDENTE)
                         .requestMatchers("/api/pedidos/**").hasAnyRole(GERENTE, ATENDENTE)
 

@@ -25,6 +25,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class PedidoService {
 
+    public static final BigDecimal DESCONTO_MAXIMO = new BigDecimal("20.00");
+    private static final int TAMANHO_MINIMO_JUSTIFICATIVA = 10;
+
     private final PedidoRepository pedidoRepository;
     private final ClienteRepository clienteRepository;
     private final ProdutoRepository produtoRepository;
@@ -83,6 +86,43 @@ public class PedidoService {
 
         pedido.alterarStatus(novoStatus, responsavel, LocalDateTime.now());
         return pedidoRepository.save(pedido);
+    }
+
+    @PreAuthorize("hasRole('GERENTE')")
+    public Pedido aplicarDesconto(String id, BigDecimal percentual, String responsavel) {
+        if (percentual == null || percentual.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new RegraNegocioException("O desconto deve ser maior que zero.");
+        }
+        if (percentual.compareTo(DESCONTO_MAXIMO) > 0) {
+            throw new RegraNegocioException("O desconto não pode ultrapassar " + DESCONTO_MAXIMO.toPlainString() + "% do valor do pedido.");
+        }
+        Pedido pedido = buscarPorId(id);
+        validarAlteravelAntesDaSaida(pedido, "aplicar desconto");
+
+        pedido.aplicarDesconto(percentual, responsavel, LocalDateTime.now());
+        return pedidoRepository.save(pedido);
+    }
+
+    @PreAuthorize("hasRole('GERENTE')")
+    public Pedido cancelar(String id, String justificativa, String responsavel) {
+        if (justificativa == null || justificativa.trim().length() < TAMANHO_MINIMO_JUSTIFICATIVA) {
+            throw new RegraNegocioException("Informe uma justificativa com pelo menos " + TAMANHO_MINIMO_JUSTIFICATIVA + " caracteres.");
+        }
+        Pedido pedido = buscarPorId(id);
+        validarAlteravelAntesDaSaida(pedido, "cancelar");
+
+        pedido.cancelar(justificativa.trim(), responsavel, LocalDateTime.now());
+        return pedidoRepository.save(pedido);
+    }
+
+    private void validarAlteravelAntesDaSaida(Pedido pedido, String operacao) {
+        StatusPedido status = pedido.getStatus();
+        if (status == StatusPedido.CANCELADO) {
+            throw new RegraNegocioException("Pedido cancelado não pode ser alterado.");
+        }
+        if (status == null || !status.isAntesDaSaida()) {
+            throw new RegraNegocioException("Não é possível " + operacao + " após a saída do pedido para entrega ou retirada.");
+        }
     }
 
     private String descreverProximos(StatusPedido atual) {

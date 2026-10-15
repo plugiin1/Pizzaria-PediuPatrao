@@ -96,7 +96,12 @@
                             <td class="ps-4" th:text="${pedido.dataHoraEntrada != null} ? ${#temporals.format(pedido.dataHoraEntrada, 'dd/MM HH:mm')} + ' · ' + ${pedido.responsavelEntrada} : '—'"></td>
                             <td th:text="${pedido.clienteNome}"></td>
                             <td th:text="${pedido.quantidadeTotalItens} + ' item(ns)'"></td>
-                            <td class="fw-medium" th:text="'R$ ' + ${#numbers.formatDecimal(pedido.valorTotal, 1, 'POINT', 2, 'COMMA')}"></td>
+                            <td class="fw-medium">
+                                <span th:text="'R$ ' + ${#numbers.formatDecimal(pedido.valorTotal, 1, 'POINT', 2, 'COMMA')}"></span>
+                                <span class="badge bg-warning text-dark ms-1"
+                                      th:if="${pedido.percentualDesconto != null and pedido.percentualDesconto.signum() > 0}"
+                                      th:text="'-' + ${#numbers.formatDecimal(pedido.percentualDesconto, 1, 'POINT', 2, 'COMMA')} + '%'"></span>
+                            </td>
                             <td>
                                 <span class="badge"
                                       th:classappend="${pedido.status == null} ? 'bg-secondary' :
@@ -119,6 +124,19 @@
                                             th:data-id="${pedido.id}" th:data-status="${proximo.name()}"
                                             onclick="avancarStatus(this.dataset.id, this.dataset.status, this.textContent.trim())">
                                         <i class="bi bi-arrow-right-circle"></i> <span th:text="${proximo.descricao}"></span>
+                                    </button>
+                                </th:block>
+                                <th:block sec:authorize="hasRole('GERENTE')" th:if="${pedido.status != null and pedido.status.antesDaSaida}">
+                                    <button class="btn btn-sm btn-outline-warning me-1"
+                                            th:data-id="${pedido.id}" th:data-subtotal="${pedido.subtotal}"
+                                            th:data-percentual="${pedido.percentualDesconto}"
+                                            onclick="abrirDesconto(this.dataset)">
+                                        <i class="bi bi-percent"></i> Desconto
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger me-1"
+                                            th:data-id="${pedido.id}" th:data-cliente="${pedido.clienteNome}"
+                                            onclick="abrirCancelamento(this.dataset)">
+                                        <i class="bi bi-x-circle"></i> Cancelar
                                     </button>
                                 </th:block>
                                 <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse"
@@ -169,6 +187,16 @@
                                         <span th:text="${pedido.dataHoraFinalizacao != null} ? ${#temporals.format(pedido.dataHoraFinalizacao, 'dd/MM/yyyy HH:mm:ss')} + ' por ' + ${pedido.responsavelFinalizacao} : '—'"></span>
                                     </div>
                                 </div>
+                                <div class="small mt-2" th:if="${pedido.responsavelDesconto != null}">
+                                    <strong>Desconto aplicado por:</strong>
+                                    <span th:text="${pedido.responsavelDesconto} + ' em ' + ${#temporals.format(pedido.dataHoraDesconto, 'dd/MM/yyyy HH:mm:ss')}"></span>
+                                </div>
+                                <div class="alert alert-danger small mt-3 mb-0 py-2" th:if="${pedido.dataHoraCancelamento != null}">
+                                    <strong>Cancelado</strong> por <span th:text="${pedido.responsavelCancelamento}"></span>
+                                    em <span th:text="${#temporals.format(pedido.dataHoraCancelamento, 'dd/MM/yyyy HH:mm:ss')}"></span>
+                                    (status anterior: <span th:text="${pedido.statusAntesCancelamento != null} ? ${pedido.statusAntesCancelamento.descricao} : '—'"></span>).
+                                    <br>Justificativa: <em th:text="${pedido.justificativaCancelamento}"></em>
+                                </div>
                                 <div class="small mt-3" th:if="${!#lists.isEmpty(pedido.historicoStatus)}">
                                     <strong>Histórico de status</strong>
                                     <ul class="list-unstyled mb-2 mt-1">
@@ -190,6 +218,121 @@
             Total: <strong th:text="${#lists.size(pedidos)}"></strong> pedido(s)
         </div>
     </div>
+
+    <div sec:authorize="hasRole('GERENTE')">
+        <div class="modal fade" id="modalDesconto" tabindex="-1">
+            <div class="modal-dialog">
+                <form class="modal-content" id="formDesconto">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-percent me-1"></i> Aplicar desconto</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="descontoPedidoId">
+                        <label for="percentualDesconto" class="form-label">Percentual (máximo 20%)</label>
+                        <div class="input-group">
+                            <input type="number" id="percentualDesconto" class="form-control" min="0.01" max="20" step="0.01" required>
+                            <span class="input-group-text">%</span>
+                        </div>
+                        <div class="form-text" id="previaDesconto"></div>
+                        <div class="text-danger small mt-2 d-none" id="erroDesconto"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Fechar</button>
+                        <button type="submit" class="btn btn-warning">Aplicar desconto</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="modal fade" id="modalCancelamento" tabindex="-1">
+            <div class="modal-dialog">
+                <form class="modal-content" id="formCancelamento">
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-x-circle me-1"></i> Cancelar pedido</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="cancelamentoPedidoId">
+                        <p class="mb-2">Pedido de <strong id="cancelamentoCliente"></strong>. Após o cancelamento o pedido não poderá mais ser alterado.</p>
+                        <label for="justificativa" class="form-label">Justificativa</label>
+                        <textarea id="justificativa" class="form-control" rows="3" minlength="10" maxlength="500" required
+                                  placeholder="Descreva o motivo do cancelamento (mínimo 10 caracteres)"></textarea>
+                        <div class="text-danger small mt-2 d-none" id="erroCancelamento"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Voltar</button>
+                        <button type="submit" class="btn btn-danger">Confirmar cancelamento</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script sec:authorize="hasRole('GERENTE')">
+        let subtotalDesconto = 0;
+
+        function abrirDesconto(dados) {
+            subtotalDesconto = parseFloat(dados.subtotal) || 0;
+            document.getElementById('descontoPedidoId').value = dados.id;
+            document.getElementById('percentualDesconto').value = parseFloat(dados.percentual) > 0 ? dados.percentual : '';
+            document.getElementById('erroDesconto').classList.add('d-none');
+            atualizarPreviaDesconto();
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalDesconto')).show();
+        }
+
+        function atualizarPreviaDesconto() {
+            const percentual = parseFloat(document.getElementById('percentualDesconto').value) || 0;
+            const desconto = subtotalDesconto * percentual / 100;
+            const moedaBr = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+            document.getElementById('previaDesconto').textContent =
+                `Subtotal ${moedaBr.format(subtotalDesconto)} · desconto ${moedaBr.format(desconto)} · total estimado ${moedaBr.format(subtotalDesconto - desconto)}`;
+        }
+
+        document.getElementById('percentualDesconto').addEventListener('input', atualizarPreviaDesconto);
+
+        document.getElementById('formDesconto').addEventListener('submit', async (evento) => {
+            evento.preventDefault();
+            const id = document.getElementById('descontoPedidoId').value;
+            const response = await fetch(`/api/pedidos/${encodeURIComponent(id)}/desconto`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ percentual: document.getElementById('percentualDesconto').value })
+            });
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                const erro = document.getElementById('erroDesconto');
+                erro.textContent = await lerErroApi(response);
+                erro.classList.remove('d-none');
+            }
+        });
+
+        function abrirCancelamento(dados) {
+            document.getElementById('cancelamentoPedidoId').value = dados.id;
+            document.getElementById('cancelamentoCliente').textContent = dados.cliente;
+            document.getElementById('justificativa').value = '';
+            document.getElementById('erroCancelamento').classList.add('d-none');
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('modalCancelamento')).show();
+        }
+
+        document.getElementById('formCancelamento').addEventListener('submit', async (evento) => {
+            evento.preventDefault();
+            const id = document.getElementById('cancelamentoPedidoId').value;
+            const response = await fetch(`/api/pedidos/${encodeURIComponent(id)}/cancelamento`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ justificativa: document.getElementById('justificativa').value })
+            });
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                const erro = document.getElementById('erroCancelamento');
+                erro.textContent = await lerErroApi(response);
+                erro.classList.remove('d-none');
+            }
+        });
+    </script>
 
     <script th:inline="javascript" sec:authorize="hasAnyRole('GERENTE', 'ATENDENTE')">
         const PRODUTOS = /*[[${produtosAtivos}]]*/ [];
