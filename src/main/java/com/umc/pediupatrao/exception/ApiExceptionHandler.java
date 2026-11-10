@@ -10,7 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.validation.BindException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestController;
@@ -37,12 +37,19 @@ public class ApiExceptionHandler {
         return resposta(HttpStatus.FORBIDDEN, "Acesso negado: seu perfil não tem permissão para esta operação.");
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> validacao(MethodArgumentNotValidException ex) {
+    @ExceptionHandler(BindException.class)
+    public ResponseEntity<Map<String, Object>> validacao(BindException ex) {
         String mensagem = ex.getBindingResult().getFieldErrors().stream()
-                .map(erro -> erro.getField() + ": " + erro.getDefaultMessage())
+                .map(erro -> erro.isBindingFailure()
+                        ? "valor inválido para o parâmetro '" + erro.getField() + "'"
+                        : erro.getField() + ": " + erro.getDefaultMessage())
                 .collect(Collectors.joining("; "));
         return resposta(HttpStatus.BAD_REQUEST, mensagem);
+    }
+
+    @ExceptionHandler(ParametroInvalidoException.class)
+    public ResponseEntity<Map<String, Object>> parametroDeConsultaInvalido(ParametroInvalidoException ex) {
+        return resposta(HttpStatus.BAD_REQUEST, ex.getMessage());
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)

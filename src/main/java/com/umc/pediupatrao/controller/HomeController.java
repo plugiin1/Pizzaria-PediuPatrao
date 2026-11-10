@@ -235,6 +235,15 @@ public class HomeController {
     }
 
     // ========================
+    // DASHBOARD
+    // ========================
+    @GetMapping("/dashboard")
+    public String dashboard(Model model) {
+        model.addAttribute("content", "dashboard :: content");
+        return "layout";
+    }
+
+    // ========================
     // AUDITORIA
     // ========================
     @GetMapping("/auditoria")

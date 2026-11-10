@@ -70,6 +70,9 @@ public class SecurityConfig {
 
                         .requestMatchers("/usuarios/**", "/api/usuarios/**").hasRole(ADMIN)
 
+                        .requestMatchers(HttpMethod.GET, "/dashboard", "/api/dashboard/**").hasAnyRole(ADMIN, GERENTE)
+                        .requestMatchers("/dashboard/**", "/api/dashboard/**").denyAll()
+
                         .requestMatchers(HttpMethod.GET, "/auditoria", "/api/auditoria").hasAnyRole(ADMIN, GERENTE)
                         .requestMatchers("/auditoria/**", "/api/auditoria/**").denyAll()
 

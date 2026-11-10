@@ -2,6 +2,9 @@
 
 Sistema de pedidos para pizzaria, desenvolvido em Java com Spring Boot, Spring Security, MongoDB e Thymeleaf.
 
+[![Testes](https://github.com/plugiin1/Pizzaria-PediuPatrao/actions/workflows/testes.yml/badge.svg)](https://github.com/plugiin1/Pizzaria-PediuPatrao/actions/workflows/testes.yml)
+
+A documentação do Dashboard Administrativo (requisitos, API, decisões de projeto e evidências de testes) está em [docs/DASHBOARD.md](docs/DASHBOARD.md).
 
 ## Sumário
 
