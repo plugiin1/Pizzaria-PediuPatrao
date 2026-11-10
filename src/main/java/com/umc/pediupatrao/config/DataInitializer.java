@@ -11,6 +11,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -23,6 +25,7 @@ public class DataInitializer {
     private static final Logger log = LoggerFactory.getLogger(DataInitializer.class);
 
     @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
     CommandLineRunner initDatabase(UsuarioRepository repo, ProdutoRepository produtoRepository, PasswordEncoder encoder,
             MongoTemplate mongoTemplate) {
         return args -> {
