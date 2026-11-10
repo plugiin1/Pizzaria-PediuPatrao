@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 import org.springframework.data.mongodb.core.mapping.FieldType;
@@ -35,6 +36,7 @@ public class Pedido {
     private BigDecimal valorTotal = BigDecimal.ZERO;
 
     private StatusPedido status;
+    @Indexed
     private LocalDateTime dataHoraEntrada;
     private String responsavelEntrada;
     private LocalDateTime dataHoraSaida;
