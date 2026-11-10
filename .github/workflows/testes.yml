@@ -16,22 +16,31 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.runCommand({ ping: 1 }).ok'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      SPRING_DATA_MONGODB_URI: mongodb://localhost:27017/pediupatrao_teste
+      SPRING_AUTOCONFIGURE_EXCLUDE: de.flapdoodle.embed.mongo.spring.autoconfigure.EmbeddedMongoAutoConfiguration
+
     steps:
       - name: Baixar o código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Configurar o Java 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
-
-      - name: Reaproveitar o MongoDB embutido
-        uses: actions/cache@v4
-        with:
-          path: ~/.embedmongo
-          key: embedmongo-${{ runner.os }}-7.0.14
 
       - name: Executar os testes
         run: |
@@ -72,7 +81,7 @@ jobs:
 
       - name: Publicar relatórios
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: relatorios-de-teste
           path: |
