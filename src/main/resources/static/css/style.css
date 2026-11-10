@@ -11,6 +11,15 @@ body {
     background-color: #343a40;
     color: white;
     height: 100vh;
+    position: sticky;
+    top: 0;
+    overflow-y: auto;
+}
+
+main {
+    flex: 1;
+    min-width: 0;
+    padding-bottom: 2rem;
 }
 
 #sidebar a {
