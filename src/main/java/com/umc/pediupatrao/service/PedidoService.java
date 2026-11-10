@@ -225,7 +225,8 @@ public class PedidoService {
             if (produto.getPreco() == null || produto.getPreco() <= 0) {
                 throw new RegraNegocioException("O produto " + produto.getNome() + " está sem preço válido.");
             }
-            itens.add(new ItemPedido(produto.getId(), produto.getNome(), quantidade, BigDecimal.valueOf(produto.getPreco())));
+            itens.add(new ItemPedido(produto.getId(), produto.getNome(), produto.getTipo(), quantidade,
+                    BigDecimal.valueOf(produto.getPreco())));
         });
         return itens;
     }

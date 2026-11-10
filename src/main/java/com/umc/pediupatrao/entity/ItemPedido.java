@@ -9,6 +9,7 @@ public class ItemPedido {
 
     private String produtoId;
     private String nomeProduto;
+    private String tipoProduto;
     private int quantidade;
 
     @Field(targetType = FieldType.DECIMAL128)
@@ -21,8 +22,13 @@ public class ItemPedido {
     }
 
     public ItemPedido(String produtoId, String nomeProduto, int quantidade, BigDecimal precoUnitario) {
+        this(produtoId, nomeProduto, null, quantidade, precoUnitario);
+    }
+
+    public ItemPedido(String produtoId, String nomeProduto, String tipoProduto, int quantidade, BigDecimal precoUnitario) {
         this.produtoId = produtoId;
         this.nomeProduto = nomeProduto;
+        this.tipoProduto = tipoProduto;
         this.quantidade = quantidade;
         this.precoUnitario = precoUnitario.setScale(2, RoundingMode.HALF_UP);
         this.subtotal = this.precoUnitario.multiply(BigDecimal.valueOf(quantidade)).setScale(2, RoundingMode.HALF_UP);
@@ -34,6 +40,10 @@ public class ItemPedido {
 
     public String getNomeProduto() {
         return nomeProduto;
+    }
+
+    public String getTipoProduto() {
+        return tipoProduto;
     }
 
     public int getQuantidade() {
